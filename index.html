@@ -923,6 +923,202 @@
             font-family: 'SF Mono', monospace;
             border: 1px solid var(--border-color);
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-wrap: wrap;
+                padding: 8px;
+                gap: 6px;
+            }
+            
+            .toolbar input {
+                order: 1;
+                max-width: none;
+                width: 100%;
+                flex: none;
+            }
+            
+            .toolbar button {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            
+            .toolbar .run-btn {
+                order: 2;
+                flex: 1;
+            }
+            
+            #installBtn {
+                order: 3;
+                flex: 1;
+            }
+            
+            .toolbar .theme-btn,
+            .toolbar .ai-btn,
+            .toolbar .help-btn {
+                order: 4;
+                padding: 8px 10px;
+            }
+            
+            .toolbar .status {
+                order: 5;
+                width: 100%;
+                text-align: center;
+                margin-top: 4px;
+            }
+            
+            .creator-badge {
+                order: 6;
+                width: 100%;
+                justify-content: center;
+                margin-left: 0;
+                margin-top: 4px;
+            }
+            
+            .main-wrapper {
+                flex-direction: column;
+            }
+            
+            .side-panel {
+                width: 100% !important;
+                min-width: 100% !important;
+                height: 0;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+                transition: height 0.3s;
+            }
+            
+            .side-panel.open {
+                height: 50vh;
+                width: 100% !important;
+                min-width: 100% !important;
+            }
+            
+            #editor {
+                min-height: 200px;
+            }
+            
+            .terminal-wrapper {
+                height: 180px;
+                margin: 4px;
+                border-radius: 8px;
+            }
+            
+            .resizer {
+                height: 8px;
+            }
+            
+            /* Modal responsive */
+            .resume-modal,
+            .howto-modal {
+                width: 95%;
+                max-height: 85vh;
+                margin: 10px;
+            }
+            
+            .resume-header,
+            .howto-header {
+                padding: 20px;
+            }
+            
+            .resume-name {
+                font-size: 22px;
+            }
+            
+            .resume-contact {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .resume-body,
+            .howto-body {
+                padding: 16px 20px;
+            }
+            
+            .skills-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .howto-step {
+                padding: 12px;
+            }
+            
+            .step-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+            
+            /* Chat panel mobile */
+            .chat-container {
+                padding: 12px;
+            }
+            
+            .chat-message {
+                max-width: 95%;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            
+            .model-selector {
+                padding: 10px 12px;
+            }
+            
+            .panel-header {
+                padding: 10px 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .toolbar button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .toolbar .theme-btn,
+            .toolbar .ai-btn,
+            .toolbar .help-btn {
+                padding: 6px 8px;
+                font-size: 14px;
+            }
+            
+            .creator-badge {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+            
+            .creator-badge .avatar {
+                width: 20px;
+                height: 20px;
+                font-size: 11px;
+            }
+            
+            .terminal-wrapper {
+                height: 150px;
+            }
+            
+            .resume-name {
+                font-size: 18px;
+            }
+            
+            .resume-title {
+                font-size: 12px;
+            }
+            
+            .section-title {
+                font-size: 11px;
+            }
+            
+            .skill-category {
+                padding: 12px;
+            }
+            
+            .skill-tag {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+        }
 
     </style>
 </head>
