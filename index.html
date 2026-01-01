@@ -77,6 +77,10 @@
             border-radius: 3px;
             cursor: pointer;
             font-weight: 500;
+            -webkit-tap-highlight-color: rgba(0, 122, 204, 0.3);
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .toolbar button:hover {
             background: #1177bb;
@@ -97,9 +101,15 @@
             border: 1px solid var(--border-color);
             font-size: 16px;
             padding: 6px 12px;
+            -webkit-tap-highlight-color: rgba(0, 122, 204, 0.3);
+            touch-action: manipulation;
         }
         .toolbar .theme-btn:hover, .toolbar .ai-btn:hover {
             background: var(--border-color);
+        }
+        .toolbar .theme-btn:active, .toolbar .ai-btn:active {
+            background: var(--accent-blue);
+            color: white;
         }
         .toolbar .ai-btn.active {
             background: var(--accent-blue);
@@ -806,12 +816,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            -webkit-tap-highlight-color: rgba(0, 122, 204, 0.3);
+            touch-action: manipulation;
         }
         
         .help-btn:hover {
             background: var(--accent-blue) !important;
             color: white !important;
             border-color: var(--accent-blue) !important;
+        }
+        
+        .help-btn:active {
+            background: var(--accent-blue) !important;
+            color: white !important;
         }
         
         /* How To Modal */
@@ -959,6 +976,11 @@
             .toolbar .help-btn {
                 order: 4;
                 padding: 8px 10px;
+                min-width: 44px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             
             .toolbar .status {
@@ -1079,8 +1101,10 @@
             .toolbar .theme-btn,
             .toolbar .ai-btn,
             .toolbar .help-btn {
-                padding: 6px 8px;
-                font-size: 14px;
+                padding: 8px 12px;
+                font-size: 16px;
+                min-width: 44px;
+                min-height: 44px;
             }
             
             .creator-badge {
