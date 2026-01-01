@@ -1734,9 +1734,22 @@ print(f"Squared: {squared}")
             }
         });
 
+        // Check URL fragment for #aboutme
+        function checkUrlFragment() {
+            if (window.location.hash === '#aboutme') {
+                document.getElementById('resumeModal').classList.add('show');
+            } else if (window.location.hash === '#help') {
+                document.getElementById('howtoModal').classList.add('show');
+            }
+        }
+        
+        // Listen for hash changes
+        window.addEventListener('hashchange', checkUrlFragment);
+
         // Initialize
         initResizer();
         initPyodide();
+        checkUrlFragment(); // Check on page load
     </script>
 </body>
 </html>
