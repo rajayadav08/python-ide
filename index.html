@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyodide Python IDE</title>
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2d2d30;
+            --bg-tertiary: #3c3c3c;
+            --border-color: #3e3e42;
+            --text-primary: #d4d4d4;
+            --text-secondary: #808080;
+            --accent-blue: #007acc;
+            --accent-green: #16825d;
+            --terminal-bg: #1a1a1a;
+            --terminal-header: #2d2d30;
+            --panel-bg: #252526;
+            --chat-user-bg: #0e639c;
+            --chat-ai-bg: #3c3c3c;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f3f3;
+            --bg-tertiary: #e8e8e8;
+            --border-color: #d4d4d4;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --accent-blue: #0066cc;
+            --accent-green: #16825d;
+            --terminal-bg: #ffffff;
+            --terminal-header: #e8e8e8;
+            --panel-bg: #f3f3f3;
+            --chat-user-bg: #0066cc;
+            --chat-ai-bg: #e8e8e8;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+        }
+        .toolbar {
+            background: var(--bg-secondary);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .toolbar input {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 3px;
+            flex: 1;
+            max-width: 300px;
+        }
+        .toolbar button {
+            padding: 6px 16px;
+            border: none;
+            background: #0e639c;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .toolbar button:hover {
+            background: #1177bb;
+        }
+        .toolbar button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .toolbar .run-btn {
+            background: #16825d;
+        }
+        .toolbar .run-btn:hover {
+            background: #1e9e6d;
+        }
+        .toolbar .theme-btn, .toolbar .ai-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            font-size: 16px;
+            padding: 6px 12px;
+        }
+        .toolbar .theme-btn:hover, .toolbar .ai-btn:hover {
+            background: var(--border-color);
+        }
+        .toolbar .ai-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+        .status {
+            padding: 4px 12px;
+            background: #007acc;
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #editor {
+            flex: 1;
+            min-height: 100px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+        
+        /* Side Panel */
+        .side-panel {
+            width: 0;
+            min-width: 0;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s, min-width 0.3s;
+            overflow: hidden;
+        }
+        
+        .side-panel.open {
+            width: 380px;
+            min-width: 380px;
+        }
+        
+        .panel-header {
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .panel-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-header h3::before {
+            content: '✨';
+        }
+        
+        .panel-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+        }
+        
+        .panel-close:hover {
+            color: var(--text-primary);
+        }
+        
+        .model-selector {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .model-selector select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .model-status {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .model-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f9a825;
+        }
+        
+        .model-status .dot.ready {
+            background: #27ca40;
+        }
+        
+        .model-status .dot.error {
+            background: #ff5f56;
+        }
+        
+        .load-progress {
+            margin-top: 8px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .load-progress-bar {
+            height: 100%;
+            background: var(--accent-blue);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .chat-message {
+            max-width: 90%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .chat-message.user {
+            align-self: flex-end;
+            background: var(--chat-user-bg);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .chat-message.assistant {
+            align-self: flex-start;
+            background: var(--chat-ai-bg);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .chat-message .code-block {
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: 6px;
+            margin: 8px 0;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            position: relative;
+        }
+        
+        .chat-message .insert-code-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+        
+        .chat-message .insert-code-btn:hover {
+            opacity: 1;
+        }
+        
+        .chat-input-container {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        
+        .chat-input-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        
+        .chat-input-wrapper textarea {
+            flex: 1;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: none;
+            min-height: 40px;
+            max-height: 120px;
+        }
+        
+        .chat-input-wrapper textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .chat-send-btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .chat-send-btn:hover {
+            background: #1177bb;
+        }
+        
+        .chat-send-btn:disabled {
+            background: var(--border-color);
+            cursor: not-allowed;
+        }
+        
+        /* Resizer */
+        .resizer {
+            height: 6px;
+            background: var(--border-color);
+            cursor: ns-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .resizer:hover {
+            background: var(--accent-blue);
+        }
+        .resizer::after {
+            content: '';
+            width: 40px;
+            height: 3px;
+            background: var(--text-secondary);
+            border-radius: 2px;
+        }
+        
+        /* Mac-like Terminal */
+        .terminal-wrapper {
+            height: 250px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            margin: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+        }
+        
+        .terminal-header {
+            background: var(--terminal-header);
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .terminal-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .terminal-btn:hover {
+            opacity: 0.8;
+        }
+        
+        .terminal-btn.close {
+            background: #ff5f56;
+        }
+        
+        .terminal-btn.minimize {
+            background: #ffbd2e;
+        }
+        
+        .terminal-btn.maximize {
+            background: #27ca40;
+        }
+        
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .terminal {
+            flex: 1;
+            background: var(--terminal-bg);
+            padding: 12px 14px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .terminal-line {
+            margin-bottom: 2px;
+        }
+        .terminal-error {
+            color: #ff6b6b;
+        }
+        .terminal-success {
+            color: #51cf66;
+        }
+        .terminal-info {
+            color: #69db7c;
+        }
+        
+        [data-theme="light"] .terminal-error {
+            color: #e03131;
+        }
+        [data-theme="light"] .terminal-success {
+            color: #2f9e44;
+        }
+        [data-theme="light"] .terminal-info {
+            color: #37b24d;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+        
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+        
+        /* Copyright Footer */
+        .copyright-footer {
+            background: var(--bg-secondary);
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .copyright-footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .copyright-footer a:hover {
+            color: #1177bb;
+            text-decoration: underline;
+        }
+        
+        /* Resume Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .resume-modal {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .resume-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            color: white;
+            position: relative;
+        }
+        
+        .resume-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .resume-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .resume-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .resume-title {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 16px;
+        }
+        
+        .resume-contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+        }
+        
+        .resume-contact a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+        
+        .resume-contact a:hover {
+            opacity: 1;
+        }
+        
+        .resume-body {
+            padding: 24px 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .resume-section {
+            margin-bottom: 24px;
+        }
+        
+        .resume-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-blue);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+        
+        /* Skills Grid */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .skill-category {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        
+        .skill-category:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 122, 204, 0.15);
+        }
+        
+        .skill-category-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .skill-tag {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .skill-tag:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        .skill-tag.highlight {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            border-color: rgba(102, 126, 234, 0.5);
+            color: #a78bfa;
+        }
+        
+        /* Project Cards - Grid Style */
+        .project-category {
+            border-left: 3px solid var(--accent-green);
+        }
+        
+        .project-category:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 8px 25px rgba(22, 130, 93, 0.15);
+        }
+        
+        .project-summary {
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        /* Creator Badge */
+        .creator-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: auto;
+            border: none;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        .creator-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        .creator-badge .avatar {
+            width: 22px;
+            height: 22px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .creator-badge .creator-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        
+        .creator-badge .creator-label {
+            font-size: 9px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .creator-badge .creator-name {
+            font-weight: 600;
+        }
+        
+        .creator-badge .click-hint {
+            font-size: 14px;
+            animation: bounce-hint 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3); }
+            50% { box-shadow: 0 2px 20px rgba(102, 126, 234, 0.6); }
+        }
+        
+        @keyframes bounce-hint {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(3px); }
+        }
+        
+        /* Help Button */
+        .help-btn {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-color) !important;
+            width: 32px;
+            height: 32px;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .help-btn:hover {
+            background: var(--accent-blue) !important;
+            color: white !important;
+            border-color: var(--accent-blue) !important;
+        }
+        
+        /* How To Modal */
+        .howto-modal {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .howto-header {
+            background: linear-gradient(135deg, #16825d 0%, #27ca40 100%);
+            padding: 24px 30px;
+            color: white;
+            position: relative;
+        }
+        
+        .howto-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .howto-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .howto-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .howto-body {
+            padding: 24px 30px;
+        }
+        
+        .howto-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .howto-step {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+        
+        .howto-step:hover {
+            border-color: var(--accent-blue);
+            transform: translateX(4px);
+        }
+        
+        .step-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        
+        .step-content h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .step-content p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        .step-content kbd {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: 'SF Mono', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <input type="text" id="packageInput" placeholder="Enter package name (e.g., numpy, pandas, requests)" />
+        <button id="installBtn">Install Package</button>
+        <button id="runBtn" class="run-btn">▶ Run Code</button>
+        <button id="themeBtn" class="theme-btn" title="Toggle Theme">🌙</button>
+        <button id="aiBtn" class="ai-btn" title="Toggle AI Assistant">✨</button>
+        <button id="helpBtn" class="help-btn" title="How to Use">?</button>
+        <div class="status" id="status">Initializing Pyodide...</div>
+        <button class="creator-badge" id="creatorBadge" title="Click to view creator profile">
+            <span class="avatar">👨‍💻</span>
+            <span class="creator-text">
+                <span class="creator-label">Created by</span>
+                <span class="creator-name">Raja Yadav</span>
+            </span>
+            <span class="click-hint">›</span>
+        </button>
+    </div>
+    
+    <div class="main-wrapper">
+        <div class="container">
+            <div id="editor"></div>
+            <div class="resizer" id="resizer"></div>
+            <div class="terminal-wrapper" id="terminalWrapper">
+                <div class="terminal-header">
+                    <div class="terminal-buttons">
+                        <button class="terminal-btn close" title="Clear Terminal" id="clearBtn"></button>
+                        <button class="terminal-btn minimize" title="Minimize"></button>
+                        <button class="terminal-btn maximize" title="Maximize"></button>
+                    </div>
+                    <span class="terminal-title">Terminal — Python</span>
+                </div>
+                <div class="terminal" id="terminal"></div>
+            </div>
+        </div>
+        
+        <div class="side-panel" id="sidePanel">
+            <div class="panel-header">
+                <h3>AI Code Assistant</h3>
+                <button class="panel-close" id="panelClose">×</button>
+            </div>
+            <div class="model-selector">
+                <select id="modelSelect">
+                    <optgroup label="Qwen2.5 Coder (Recommended)">
+                        <option value="Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC">Qwen2.5 Coder 0.5B (Fastest)</option>
+                        <option value="Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC" selected>Qwen2.5 Coder 1.5B (Balanced)</option>
+                        <option value="Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC">Qwen2.5 Coder 3B</option>
+                        <option value="Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC">Qwen2.5 Coder 7B (Best Quality)</option>
+                    </optgroup>
+                    <optgroup label="Llama">
+                        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (Fast)</option>
+                        <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 3B</option>
+                    </optgroup>
+                    <optgroup label="Other Models">
+                        <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B</option>
+                        <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5 1.5B</option>
+                        <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5 Mini</option>
+                    </optgroup>
+                </select>
+                <div class="model-status" id="modelStatus">
+                    <span class="dot" id="statusDot"></span>
+                    <span id="statusText">Click to load model</span>
+                </div>
+                <div class="load-progress" id="loadProgress" style="display: none;">
+                    <div class="load-progress-bar" id="loadProgressBar"></div>
+                </div>
+                <button id="loadModelBtn" style="margin-top: 8px; width: 100%; padding: 8px; background: var(--accent-blue); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Load Model</button>
+            </div>
+            <div class="chat-container" id="chatContainer">
+                <div class="chat-message assistant">
+                    👋 Hi! I'm your AI coding assistant. Load a model above, then ask me to write Python code for you. I can help with:
+                    • Writing functions and classes
+                    • Explaining code concepts
+                    • Debugging issues
+                    • Data analysis with pandas/numpy
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea id="chatInput" placeholder="Ask me to write code..." rows="1" disabled></textarea>
+                    <button class="chat-send-btn" id="chatSendBtn" disabled>➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Copyright Footer -->
+    <footer class="copyright-footer">
+        © 2026 <a href="#" id="resumeLink">Raja Yadav</a> • <a href="mailto:raja.yadav1108@gmail.com">raja.yadav1108@gmail.com</a>
+    </footer>
+    
+    <!-- Resume Modal -->
+    <div class="modal-overlay" id="resumeModal">
+        <div class="resume-modal">
+            <div class="resume-header">
+                <button class="resume-close" id="resumeClose">×</button>
+                <div class="resume-name">Raja Yadav</div>
+                <div class="resume-title">Web Developer • Software Developer • AI Automation Engineer</div>
+                <div class="resume-contact">
+                    <a href="mailto:raja.yadav1108@gmail.com">📧 raja.yadav1108@gmail.com</a>
+                    <a href="https://linkedin.com/in/raja-yadav-ab38a0242" target="_blank">💼 LinkedIn</a>
+                    <a href="https://github.com/rajayadav08" target="_blank">🐙 GitHub</a>
+                    <span>📍 Bangalore, India</span>
+                </div>
+            </div>
+            <div class="resume-body">
+                <!-- Technical Skills Section -->
+                <div class="resume-section">
+                    <h3 class="section-title">⚡ Technical Skills</h3>
+                    <div class="skills-grid">
+                        <div class="skill-category">
+                            <div class="skill-category-title">Languages</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">Python</span>
+                                <span class="skill-tag highlight">JavaScript</span>
+                                <span class="skill-tag">HTML</span>
+                                <span class="skill-tag">CSS</span>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <div class="skill-category-title">Frameworks & APIs</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">Django</span>
+                                <span class="skill-tag highlight">FastAPI</span>
+                                <span class="skill-tag">REST APIs</span>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <div class="skill-category-title">AI & LLM</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">LLM Applications</span>
+                                <span class="skill-tag highlight">Agentic Workflows</span>
+                                <span class="skill-tag">Prompt Engineering</span>
+                                <span class="skill-tag">MCP Server</span>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <div class="skill-category-title">DevOps & Tools</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">Docker</span>
+                                <span class="skill-tag highlight">Git</span>
+                                <span class="skill-tag">Linux</span>
+                                <span class="skill-tag">MySQL</span>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <div class="skill-category-title">Core CS</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag">OOP</span>
+                                <span class="skill-tag">Data Structures</span>
+                                <span class="skill-tag">Algorithms</span>
+                                <span class="skill-tag">Secure Coding</span>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <div class="skill-category-title">Specializations</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">AI-Assisted Coding</span>
+                                <span class="skill-tag">Automation</span>
+                                <span class="skill-tag">API Testing</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Projects Section -->
+                <div class="resume-section">
+                    <h3 class="section-title">🚀 Projects</h3>
+                    <div class="skills-grid">
+                        <div class="skill-category project-category">
+                            <div class="skill-category-title">🖥️ Python IDE</div>
+                            <div class="project-summary">In-Browser Python IDE with LLM Assistance</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">WebAssembly</span>
+                                <span class="skill-tag highlight">WebLLM</span>
+                                <span class="skill-tag">JavaScript</span>
+                                <span class="skill-tag">Python</span>
+                            </div>
+                        </div>
+                        <div class="skill-category project-category">
+                            <div class="skill-category-title">📚 Academic System</div>
+                            <div class="project-summary">Academic Monitoring & Reporting System</div>
+                            <div class="skill-tags">
+                                <span class="skill-tag highlight">Django</span>
+                                <span class="skill-tag highlight">REST APIs</span>
+                                <span class="skill-tag">Docker</span>
+                                <span class="skill-tag">MySQL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+    </div>
+    
+    <!-- How To Use Modal -->
+    <div class="modal-overlay" id="howtoModal">
+        <div class="howto-modal">
+            <div class="howto-header">
+                <h2>📖 How to Use</h2>
+                <button class="howto-close" id="howtoClose">×</button>
+            </div>
+            <div class="howto-body">
+                <div class="howto-steps">
+                    <div class="howto-step">
+                        <div class="step-icon">✏️</div>
+                        <div class="step-content">
+                            <h4>1. Write Code</h4>
+                            <p>Type your Python code in the editor. It supports syntax highlighting and auto-indent.</p>
+                        </div>
+                    </div>
+                    <div class="howto-step">
+                        <div class="step-icon">📦</div>
+                        <div class="step-content">
+                            <h4>2. Install Packages</h4>
+                            <p>Type package name (like <kbd>numpy</kbd> or <kbd>pandas</kbd>) in the input box and click <kbd>Install Package</kbd>.</p>
+                        </div>
+                    </div>
+                    <div class="howto-step">
+                        <div class="step-icon">▶️</div>
+                        <div class="step-content">
+                            <h4>3. Run Code</h4>
+                            <p>Click <kbd>Run Code</kbd> button or press <kbd>Ctrl+Enter</kbd> to execute. Output shows in terminal below.</p>
+                        </div>
+                    </div>
+                    <div class="howto-step">
+                        <div class="step-icon">🤖</div>
+                        <div class="step-content">
+                            <h4>4. Use AI Assistant</h4>
+                            <p>Click <kbd>✨</kbd> button → Load a model → Ask AI to write code → Click <kbd>+ Insert</kbd> to add code to editor.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script type="module">
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+        
+        let pyodide = null;
+        let editor = null;
+        let currentTheme = 'dark';
+        let llmEngine = null;
+        let isGenerating = false;
+        let chatHistory = [];
+
+        // Initialize Monaco Editor
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: `# Python IDE with Pyodide
+# Install packages using the input box above (e.g., numpy, pandas, matplotlib)
+
+import sys
+print("Python version:", sys.version)
+print("Welcome to Pyodide!")
+
+# Example: Basic operations
+numbers = [1, 2, 3, 4, 5]
+squared = [x**2 for x in numbers]
+print(f"Original: {numbers}")
+print(f"Squared: {squared}")
+`,
+                language: 'python',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: true },
+                fontSize: 14,
+                fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace",
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                tabSize: 4,
+                insertSpaces: true
+            });
+        });
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeBtn = document.getElementById('themeBtn');
+            
+            if (currentTheme === 'dark') {
+                currentTheme = 'light';
+                html.setAttribute('data-theme', 'light');
+                themeBtn.textContent = '☀️';
+                if (editor) {
+                    monaco.editor.setTheme('vs');
+                }
+            } else {
+                currentTheme = 'dark';
+                html.setAttribute('data-theme', 'dark');
+                themeBtn.textContent = '🌙';
+                if (editor) {
+                    monaco.editor.setTheme('vs-dark');
+                }
+            }
+        }
+
+        // Side Panel toggle
+        function toggleSidePanel() {
+            const panel = document.getElementById('sidePanel');
+            const aiBtn = document.getElementById('aiBtn');
+            panel.classList.toggle('open');
+            aiBtn.classList.toggle('active');
+        }
+
+        // Load LLM Model
+        async function loadModel() {
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedModel = modelSelect.value;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const loadProgress = document.getElementById('loadProgress');
+            const loadProgressBar = document.getElementById('loadProgressBar');
+            const loadModelBtn = document.getElementById('loadModelBtn');
+            const chatInput = document.getElementById('chatInput');
+            const chatSendBtn = document.getElementById('chatSendBtn');
+            
+            loadModelBtn.disabled = true;
+            loadModelBtn.textContent = 'Loading...';
+            loadProgress.style.display = 'block';
+            statusText.textContent = 'Initializing...';
+            statusDot.className = 'dot';
+            
+            const initProgressCallback = (progress) => {
+                if (progress.progress !== undefined) {
+                    const percent = Math.round(progress.progress * 100);
+                    loadProgressBar.style.width = percent + '%';
+                    statusText.textContent = progress.text || `Loading: ${percent}%`;
+                } else {
+                    statusText.textContent = progress.text || 'Loading...';
+                }
+            };
+            
+            try {
+                llmEngine = await webllm.CreateMLCEngine(selectedModel, {
+                    initProgressCallback: initProgressCallback
+                });
+                
+                statusDot.className = 'dot ready';
+                statusText.textContent = 'Model ready!';
+                loadProgress.style.display = 'none';
+                loadModelBtn.textContent = 'Model Loaded ✓';
+                chatInput.disabled = false;
+                chatSendBtn.disabled = false;
+                chatInput.placeholder = 'Ask me to write code...';
+                
+                // Reset chat history for new model
+                chatHistory = [
+                    { 
+                        role: "system", 
+                        content: `You are a helpful Python coding assistant. When asked to write code, provide clean, well-commented Python code. Format code blocks with triple backticks and 'python' language identifier. Be concise but helpful. Focus on practical, working code examples.`
+                    }
+                ];
+                
+            } catch (error) {
+                console.error('Model loading error:', error);
+                statusDot.className = 'dot error';
+                statusText.textContent = 'Error: ' + error.message;
+                loadProgress.style.display = 'none';
+                loadModelBtn.disabled = false;
+                loadModelBtn.textContent = 'Retry Load';
+            }
+        }
+
+        // Add message to chat
+        function addChatMessage(content, role) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}`;
+            
+            // Parse code blocks
+            const codeBlockRegex = /```python\n?([\s\S]*?)```|```\n?([\s\S]*?)```/g;
+            let lastIndex = 0;
+            let match;
+            let hasCode = false;
+            
+            while ((match = codeBlockRegex.exec(content)) !== null) {
+                hasCode = true;
+                // Add text before code block
+                if (match.index > lastIndex) {
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = content.substring(lastIndex, match.index);
+                    messageDiv.appendChild(textSpan);
+                }
+                
+                // Add code block
+                const codeContent = match[1] || match[2];
+                const codeDiv = document.createElement('div');
+                codeDiv.className = 'code-block';
+                
+                const codeText = document.createElement('pre');
+                codeText.textContent = codeContent.trim();
+                codeDiv.appendChild(codeText);
+                
+                // Add insert button
+                const insertBtn = document.createElement('button');
+                insertBtn.className = 'insert-code-btn';
+                insertBtn.textContent = '+ Insert';
+                insertBtn.onclick = () => insertCodeToEditor(codeContent.trim());
+                codeDiv.appendChild(insertBtn);
+                
+                messageDiv.appendChild(codeDiv);
+                lastIndex = match.index + match[0].length;
+            }
+            
+            // Add remaining text
+            if (lastIndex < content.length) {
+                const textSpan = document.createElement('span');
+                textSpan.textContent = content.substring(lastIndex);
+                messageDiv.appendChild(textSpan);
+            }
+            
+            if (!hasCode && lastIndex === 0) {
+                messageDiv.textContent = content;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        // Insert code into editor
+        function insertCodeToEditor(code) {
+            if (editor) {
+                const position = editor.getPosition();
+                const selection = editor.getSelection();
+                
+                // Insert at cursor or replace selection
+                editor.executeEdits('ai-insert', [{
+                    range: selection,
+                    text: code + '\n',
+                    forceMoveMarkers: true
+                }]);
+                
+                editor.focus();
+            }
+        }
+
+        // Send chat message
+        async function sendChatMessage() {
+            if (!llmEngine || isGenerating) return;
+            
+            const chatInput = document.getElementById('chatInput');
+            const chatSendBtn = document.getElementById('chatSendBtn');
+            const userMessage = chatInput.value.trim();
+            
+            if (!userMessage) return;
+            
+            // Add user message
+            addChatMessage(userMessage, 'user');
+            chatHistory.push({ role: "user", content: userMessage });
+            
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            chatSendBtn.disabled = true;
+            isGenerating = true;
+            
+            // Add typing indicator
+            const chatContainer = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message assistant';
+            typingDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                // Stream the response
+                const chunks = await llmEngine.chat.completions.create({
+                    messages: chatHistory,
+                    temperature: 0.7,
+                    stream: true,
+                });
+                
+                // Remove typing indicator
+                typingDiv.remove();
+                
+                // Create message element for streaming
+                let fullReply = '';
+                const messageDiv = addChatMessage('', 'assistant');
+                
+                for await (const chunk of chunks) {
+                    const delta = chunk.choices[0]?.delta?.content || '';
+                    fullReply += delta;
+                    
+                    // Update message with parsed content
+                    messageDiv.innerHTML = '';
+                    parseAndRenderContent(messageDiv, fullReply);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                
+                chatHistory.push({ role: "assistant", content: fullReply });
+                
+            } catch (error) {
+                typingDiv.remove();
+                addChatMessage('Error: ' + error.message, 'assistant');
+            }
+            
+            chatSendBtn.disabled = false;
+            isGenerating = false;
+        }
+
+        // Parse and render content with code blocks
+        function parseAndRenderContent(element, content) {
+            const codeBlockRegex = /```python\n?([\s\S]*?)```|```\n?([\s\S]*?)```/g;
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = codeBlockRegex.exec(content)) !== null) {
+                if (match.index > lastIndex) {
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = content.substring(lastIndex, match.index);
+                    element.appendChild(textSpan);
+                }
+                
+                const codeContent = match[1] || match[2];
+                const codeDiv = document.createElement('div');
+                codeDiv.className = 'code-block';
+                
+                const codeText = document.createElement('pre');
+                codeText.textContent = codeContent.trim();
+                codeDiv.appendChild(codeText);
+                
+                const insertBtn = document.createElement('button');
+                insertBtn.className = 'insert-code-btn';
+                insertBtn.textContent = '+ Insert';
+                insertBtn.onclick = () => insertCodeToEditor(codeContent.trim());
+                codeDiv.appendChild(insertBtn);
+                
+                element.appendChild(codeDiv);
+                lastIndex = match.index + match[0].length;
+            }
+            
+            if (lastIndex < content.length) {
+                const textSpan = document.createElement('span');
+                textSpan.textContent = content.substring(lastIndex);
+                element.appendChild(textSpan);
+            }
+        }
+
+        // Resizable terminal
+        function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const terminalWrapper = document.getElementById('terminalWrapper');
+            const container = document.querySelector('.container');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const newHeight = containerRect.bottom - e.clientY - 8; // 8px for margin
+                
+                if (newHeight >= 80 && newHeight <= containerRect.height - 150) {
+                    terminalWrapper.style.height = newHeight + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            });
+        }
+
+        // Terminal functions
+        function writeToTerminal(text, type = 'normal') {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type === 'error' ? 'terminal-error' : type === 'success' ? 'terminal-success' : type === 'info' ? 'terminal-info' : ''}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal').innerHTML = '';
+        }
+
+        function updateStatus(text, color = '#007acc') {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.style.background = color;
+        }
+
+        // Initialize Pyodide
+        async function initPyodide() {
+            try {
+                writeToTerminal('Loading Pyodide...', 'info');
+                
+                // Load Pyodide
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+                document.head.appendChild(script);
+                
+                await new Promise((resolve, reject) => {
+                    script.onload = resolve;
+                    script.onerror = reject;
+                });
+                
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
+                });
+                
+                // Load micropip for PyPI package installation
+                writeToTerminal('Loading micropip...', 'info');
+                await pyodide.loadPackage('micropip');
+                
+                // Redirect Python stdout and stderr
+                pyodide.runPython(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                    sys.stderr = io.StringIO()
+                `);
+                
+                writeToTerminal('Pyodide loaded successfully!', 'success');
+                updateStatus('Ready', '#16825d');
+                document.getElementById('installBtn').disabled = false;
+                document.getElementById('runBtn').disabled = false;
+            } catch (err) {
+                writeToTerminal(`Failed to load Pyodide: ${err.message}`, 'error');
+                updateStatus('Error', '#e51400');
+            }
+        }
+
+        // Install package
+        async function installPackage() {
+            const packageName = document.getElementById('packageInput').value.trim();
+            if (!packageName) {
+                writeToTerminal('Please enter a package name', 'error');
+                return;
+            }
+
+            try {
+                document.getElementById('installBtn').disabled = true;
+                updateStatus(`Installing ${packageName}...`, '#f9a825');
+                writeToTerminal(`Installing package: ${packageName}`, 'info');
+                
+                // First try Pyodide built-in packages
+                try {
+                    await pyodide.loadPackage(packageName);
+                    writeToTerminal(`✓ Package '${packageName}' installed from Pyodide`, 'success');
+                } catch (pyodideErr) {
+                    // If not available in Pyodide, try PyPI with micropip
+                    writeToTerminal(`Not found in Pyodide, trying PyPI...`, 'info');
+                    await pyodide.runPythonAsync(`
+                        import micropip
+                        await micropip.install('${packageName}')
+                    `);
+                    writeToTerminal(`✓ Package '${packageName}' installed from PyPI`, 'success');
+                }
+                
+                updateStatus('Ready', '#16825d');
+                document.getElementById('packageInput').value = '';
+            } catch (err) {
+                writeToTerminal(`✗ Failed to install '${packageName}': ${err.message}`, 'error');
+                writeToTerminal(`Tip: Make sure the package has a pure Python wheel on PyPI`, 'info');
+                updateStatus('Ready', '#16825d');
+            } finally {
+                document.getElementById('installBtn').disabled = false;
+            }
+        }
+
+        // Run Python code
+        async function runCode() {
+            const code = editor.getValue();
+            if (!code.trim()) {
+                writeToTerminal('No code to run', 'error');
+                return;
+            }
+
+            clearTerminal();
+            writeToTerminal('>>> Running code...', 'info');
+            
+            try {
+                document.getElementById('runBtn').disabled = true;
+                updateStatus('Running...', '#f9a825');
+                
+                // Clear previous output
+                pyodide.runPython(`
+                    import sys
+                    sys.stdout.truncate(0)
+                    sys.stdout.seek(0)
+                    sys.stderr.truncate(0)
+                    sys.stderr.seek(0)
+                `);
+                
+                // Run the code
+                await pyodide.runPythonAsync(code);
+                
+                // Get stdout
+                const stdout = pyodide.runPython('sys.stdout.getvalue()');
+                if (stdout) {
+                    stdout.split('\n').forEach(line => {
+                        if (line) writeToTerminal(line);
+                    });
+                }
+                
+                // Get stderr
+                const stderr = pyodide.runPython('sys.stderr.getvalue()');
+                if (stderr) {
+                    stderr.split('\n').forEach(line => {
+                        if (line) writeToTerminal(line, 'error');
+                    });
+                }
+                
+                if (!stdout && !stderr) {
+                    writeToTerminal('(No output)', 'info');
+                }
+                
+                writeToTerminal('>>> Execution completed', 'success');
+                updateStatus('Ready', '#16825d');
+            } catch (err) {
+                writeToTerminal(`Error: ${err.message}`, 'error');
+                updateStatus('Ready', '#16825d');
+            } finally {
+                document.getElementById('runBtn').disabled = false;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('installBtn').addEventListener('click', installPackage);
+        document.getElementById('runBtn').addEventListener('click', runCode);
+        document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+        document.getElementById('clearBtn').addEventListener('click', clearTerminal);
+        document.getElementById('aiBtn').addEventListener('click', toggleSidePanel);
+        document.getElementById('panelClose').addEventListener('click', toggleSidePanel);
+        document.getElementById('loadModelBtn').addEventListener('click', loadModel);
+        document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+        document.getElementById('packageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') installPackage();
+        });
+        
+        // Chat input handlers
+        const chatInput = document.getElementById('chatInput');
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+
+        // Keyboard shortcut for run (Ctrl+Enter or Cmd+Enter)
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                runCode();
+            }
+        });
+
+        // Disable buttons until Pyodide is ready
+        document.getElementById('installBtn').disabled = true;
+        document.getElementById('runBtn').disabled = true;
+        
+        // Resume modal handlers
+        document.getElementById('resumeLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('resumeModal').classList.add('show');
+        });
+        document.getElementById('creatorBadge').addEventListener('click', () => {
+            document.getElementById('resumeModal').classList.add('show');
+        });
+        document.getElementById('resumeClose').addEventListener('click', () => {
+            document.getElementById('resumeModal').classList.remove('show');
+        });
+        document.getElementById('resumeModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                document.getElementById('resumeModal').classList.remove('show');
+            }
+        });
+        
+        // How-to modal handlers
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            document.getElementById('howtoModal').classList.add('show');
+        });
+        document.getElementById('howtoClose').addEventListener('click', () => {
+            document.getElementById('howtoModal').classList.remove('show');
+        });
+        document.getElementById('howtoModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                document.getElementById('howtoModal').classList.remove('show');
+            }
+        });
+        
+        // Close modals on Escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('resumeModal').classList.remove('show');
+                document.getElementById('howtoModal').classList.remove('show');
+            }
+        });
+
+        // Initialize
+        initResizer();
+        initPyodide();
+    </script>
+</body>
+</html>
